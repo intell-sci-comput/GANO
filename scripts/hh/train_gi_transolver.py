@@ -23,7 +23,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.gi_transolver.model import Model as TransolverModel
+from src.hh.gi_transolver import Model as TransolverModel
 
 # A100 TF32 加速
 torch.backends.cuda.matmul.allow_tf32 = True

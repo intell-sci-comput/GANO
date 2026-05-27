@@ -23,7 +23,7 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 # 注意：这里需要根据你模型代码的实际类名进行导入
-from src.stablesdf.model import DeepSDFNet 
+from src.car.model import DeepSDFNet 
 
 # ==========================================
 # ======= [全局参数配置字典] ================

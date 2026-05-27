@@ -21,7 +21,7 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from src.stablesdf.model import DeepSDFWorkspace
+from src.car.model import DeepSDFWorkspace
 
 # ==========================================
 # ======= [全局参数配置字典] ================
