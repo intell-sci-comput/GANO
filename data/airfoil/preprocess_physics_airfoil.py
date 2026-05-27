@@ -85,37 +85,52 @@ def load_latents(ckpt_path):
     
     if isinstance(ckpt, torch.Tensor):
         z_all = ckpt
+        indices = None
     elif isinstance(ckpt, dict) and 'weight' in ckpt:
         z_all = ckpt['weight']
+        indices = ckpt.get('indices')
     elif isinstance(ckpt, dict) and 'latents' in ckpt:
         latents_data = ckpt['latents']
+        indices = ckpt.get('indices')
         if isinstance(latents_data, dict) and 'weight' in latents_data:
             z_all = latents_data['weight']
+            indices = latents_data.get('indices', indices)
         elif isinstance(latents_data, torch.Tensor):
             z_all = latents_data
         else:
             z_all = latents_data.get('weight', None)
+            indices = latents_data.get('indices', indices)
     elif isinstance(ckpt, dict):
         print("Warning: 'latents' key not found directly. Searching state_dict...")
         z_all = None
+        indices = ckpt.get('indices')
         for key in ckpt.keys():
             if 'latents' in key and 'weight' in key:
                 z_all = ckpt[key]
                 break
     else:
         z_all = None
+        indices = None
                 
     if z_all is None:
         raise ValueError("Could not extract latent vectors from checkpoint.")
-        
+
+    if indices is None:
+        indices = torch.arange(z_all.shape[0], dtype=torch.long)
+    else:
+        indices = torch.as_tensor(indices, dtype=torch.long)
+
+    if len(indices) != z_all.shape[0]:
+        raise ValueError(f"Latent/index length mismatch: {z_all.shape[0]} latents vs {len(indices)} indices.")
+
     print(f"Successfully loaded {z_all.shape[0]} latent codes with dimension {z_all.shape[1]}.")
-    return z_all
+    return z_all, indices
 
 def build_dataset():
     # 1. 加载隐向量 z
     try:
         latents_path = resolve_latents_path()
-        z_all = load_latents(latents_path)
+        z_all, latent_indices = load_latents(latents_path)
     except Exception as e:
         print(f"Error loading latents: {e}")
         return
@@ -140,14 +155,18 @@ def build_dataset():
         
         sample_ids = sorted(flow_group.keys(), key=lambda x: int(x))
         total_samples = len(sample_ids)
-        limit = CONFIG['PROCESS_LIMIT'] if CONFIG['PROCESS_LIMIT'] else total_samples
-        limit = min(limit, z_all.shape[0])
+        limit = CONFIG['PROCESS_LIMIT'] if CONFIG['PROCESS_LIMIT'] else len(latent_indices)
+        limit = min(limit, len(latent_indices))
         
         print(f"Target processing count: {limit}")
         print("Phase 1: Extracting...")
         
         for i in tqdm(range(limit), desc="Extracting Fields"):
-            sid = sample_ids[i]
+            source_idx = int(latent_indices[i].item())
+            if source_idx >= total_samples:
+                print(f"Warning: source index {source_idx} out of H5 range {total_samples}, skipping.")
+                continue
+            sid = sample_ids[source_idx]
             z_vec = z_all[i] 
             
             sample = flow_group[sid]
@@ -176,9 +195,13 @@ def build_dataset():
             processed_data["latents"].append(z_vec)
             processed_data["coords"].append(torch.from_numpy(coords).float())
             processed_data["targets"].append(torch.from_numpy(targets).float())
-            processed_data["indices"].append(int(sid))
+            processed_data["indices"].append(source_idx)
 
     # --- 第二轮：标准化 (Standardization) ---
+    if not processed_data["targets"]:
+        print("Error: no valid physics samples were extracted.")
+        return
+
     print("Phase 2: Computing Statistics on ALL data...")
     all_targets_cat = torch.cat(processed_data["targets"], dim=0)
     

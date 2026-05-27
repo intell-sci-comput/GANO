@@ -61,6 +61,7 @@ def main():
     data = torch.load(CONFIG['DATA_PATH'], map_location='cpu')
     coords_all = data['coords']  # (N, 4096, 2)
     sdfs_all = data['sdfs']      # (N, 4096, 1)
+    source_indices = data.get('indices', torch.arange(coords_all.shape[0], dtype=torch.long))
 
     num_shapes = coords_all.shape[0]
     num_points = coords_all.shape[1]
@@ -135,7 +136,10 @@ def main():
             
             torch.save(model.state_dict(), os.path.join(CONFIG["SAVE_DIR"], 'model_latest.pth'))
             # 注意：保存格式必须有 'weight' 键，以便后续的 dataset.py 能无缝读取
-            torch.save({'weight': latents.weight.detach().cpu()}, os.path.join(CONFIG["SAVE_DIR"], 'latents_latest.pth'))
+            torch.save({
+                'weight': latents.weight.detach().cpu(),
+                'indices': source_indices.detach().cpu()
+            }, os.path.join(CONFIG["SAVE_DIR"], 'latents_latest.pth'))
 
         if epoch % CONFIG["SAVE_EVERY"] == 0:
             torch.save(model.state_dict(), os.path.join(CONFIG["SAVE_DIR"], f'model_{epoch}.pth'))

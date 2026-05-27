@@ -130,6 +130,7 @@ def process_dataset():
         
         all_coords = []
         all_sdfs = []
+        all_indices = []
         
         # 使用 tqdm 显示进度
         for i in tqdm(range(target_count), desc="Processing Airfoils"):
@@ -141,9 +142,13 @@ def process_dataset():
             if coords is not None:
                 all_coords.append(coords)
                 all_sdfs.append(sdfs)
+                all_indices.append(i)
             else:
                 print(f"Skipping shape {i} due to error.")
-                # 简单跳过，后续的 Tensor 会少一个样本，但不影响对齐
+                # 跳过后必须记录成功样本的原始 index，后续物理场 latent 依赖该映射。
+
+    if not all_coords:
+        raise RuntimeError("No valid airfoil SDF samples were generated.")
 
     # 转换为 Tensor
     print("Converting to Tensors...")
@@ -153,7 +158,8 @@ def process_dataset():
     # 保存
     torch.save({
         'coords': coords_tensor,
-        'sdfs': sdfs_tensor
+        'sdfs': sdfs_tensor,
+        'indices': torch.tensor(all_indices, dtype=torch.long)
     }, save_path)
     
     print(f"Dataset saved to {save_path}")
