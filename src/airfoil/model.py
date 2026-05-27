@@ -1,3 +1,9 @@
+"""
+代码说明：
+2D 机翼任务的 Stable-SDF 解码器。
+包含二维位置编码和带 skip connection 的 DeepSDF MLP，用于从翼型 latent code 解码 SDF。
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

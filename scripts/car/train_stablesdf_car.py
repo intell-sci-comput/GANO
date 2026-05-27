@@ -17,8 +17,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 # 【关键适配】将 GANO 仓库根目录加入系统路径，这样才能正确导入 src 下的模型
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(current_dir)
-sys.path.append(project_root)
+project_root = os.path.dirname(os.path.dirname(current_dir))
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
 from src.stablesdf.model import DeepSDFWorkspace
 
@@ -29,7 +30,8 @@ CONFIG = {
     # --- 路径配置 ---
     "DATA_DIRS": [
         '/home/sunguoze/Getsdf/sdf_output_hybrid',
-        '/home/sunguoze/Getsdf/sdf_output_hybrid2'
+        '/home/sunguoze/Getsdf/sdf_output_hybrid2',
+        '/mnt/sunguoze/processed_data/car_sdf_hybrid',
     ],
     # 将保存路径指向我们在 GANO 里规范的 checkpoints 目录
     "SAVE_DIR": os.path.join(project_root, "checkpoints", "car_training_h800_all"),
@@ -153,7 +155,7 @@ def main():
     print("正在搜索数据文件...")
     for data_dir in CONFIG["DATA_DIRS"]:
         if os.path.exists(data_dir):
-            files = glob.glob(os.path.join(data_dir, "*.npz"))
+            files = glob.glob(os.path.join(data_dir, "**", "*.npz"), recursive=True)
             print(f"  - {data_dir}: 找到 {len(files)} 个文件")
             all_files.extend(files)
         else:
@@ -164,7 +166,7 @@ def main():
         return
 
     # 排序并打乱
-    all_files = sorted(all_files)
+    all_files = sorted(set(os.path.abspath(f) for f in all_files))
     random.seed(42)
     random.shuffle(all_files)
     
@@ -185,6 +187,7 @@ def main():
     workspace = DeepSDFWorkspace(num_scenes=len(train_files), latent_size=CONFIG["LATENT_SIZE"])
 
     # 4. 加载断点 (Checkpoint)
+    start_epoch = CONFIG["START_EPOCH"]
     if CONFIG["RESUME"]:
         model_path = os.path.join(CONFIG["SAVE_DIR"], 'model_latest.pth')
         latent_path = os.path.join(CONFIG["SAVE_DIR"], 'latents_latest.pth')
@@ -196,13 +199,14 @@ def main():
             print(">>> 模型与 Latent Codes 加载成功！继续训练。")
         else:
             print("警告：未找到断点文件，将从头开始训练！")
+            start_epoch = 0
 
     # 5. 训练循环
-    print(f"开始训练: Epoch {CONFIG['START_EPOCH']} -> {CONFIG['NUM_EPOCHS']}")
+    print(f"开始训练: Epoch {start_epoch} -> {CONFIG['NUM_EPOCHS']}")
     print(f"当前使用的噪声强度 (NOISE_STD): {CONFIG['NOISE_STD']}")
     
     start_time = time.time()
-    pbar = tqdm(range(CONFIG["START_EPOCH"], CONFIG["NUM_EPOCHS"]), desc="Training", unit="epoch")
+    pbar = tqdm(range(start_epoch, CONFIG["NUM_EPOCHS"]), desc="Training", unit="epoch")
 
     for epoch in pbar:
         perm = torch.randperm(num_samples, device='cuda')

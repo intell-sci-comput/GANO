@@ -1,3 +1,9 @@
+"""
+代码说明：
+3D Stable-SDF 核心网络与训练工作区定义。
+包含位置编码、DeepSDF 解码器、latent code 训练封装和未见形状的 latent 反演函数。
+"""
+
 import torch
 import torch.nn as nn
 import numpy as np

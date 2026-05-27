@@ -24,7 +24,10 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 CONFIG = {
     # --- 输入文件路径 (指向 A100 上的原位置，避免复制 56GB 巨型文件) ---
     'H5_PATH': '/home/sunguoze/airfoil/airfoil_9k_data.h5',          
-    'CKPT_PATH': '/home/sunguoze/airfoil/deepsdf_airfoil.pth',       
+    'LATENTS_PATH': os.path.join(project_root, 'checkpoints', 'airfoil_stablesdf', 'latents_latest.pth'),
+    'FALLBACK_LATENTS_PATHS': [
+        '/home/sunguoze/airfoil/deepsdf_airfoil.pth',
+    ],
     
     # --- 输出文件路径 ---
     'SAVE_PATH': os.path.join(project_root, 'data', 'airfoil', 'airfoil_physics_train.pt'),
@@ -63,6 +66,13 @@ def compute_uvp(rho, rho_u, rho_v, e, gamma=1.4):
     
     return u, v, p
 
+def resolve_latents_path():
+    candidates = [CONFIG['LATENTS_PATH'], *CONFIG.get('FALLBACK_LATENTS_PATHS', [])]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(f"No latent checkpoint found in candidates: {candidates}")
+
 def load_latents(ckpt_path):
     """
     从 DeepSDF Checkpoint 加载隐向量 z
@@ -73,7 +83,11 @@ def load_latents(ckpt_path):
         
     ckpt = torch.load(ckpt_path, map_location='cpu')
     
-    if 'latents' in ckpt:
+    if isinstance(ckpt, torch.Tensor):
+        z_all = ckpt
+    elif isinstance(ckpt, dict) and 'weight' in ckpt:
+        z_all = ckpt['weight']
+    elif isinstance(ckpt, dict) and 'latents' in ckpt:
         latents_data = ckpt['latents']
         if isinstance(latents_data, dict) and 'weight' in latents_data:
             z_all = latents_data['weight']
@@ -81,13 +95,15 @@ def load_latents(ckpt_path):
             z_all = latents_data
         else:
             z_all = latents_data.get('weight', None)
-    else:
+    elif isinstance(ckpt, dict):
         print("Warning: 'latents' key not found directly. Searching state_dict...")
         z_all = None
         for key in ckpt.keys():
             if 'latents' in key and 'weight' in key:
                 z_all = ckpt[key]
                 break
+    else:
+        z_all = None
                 
     if z_all is None:
         raise ValueError("Could not extract latent vectors from checkpoint.")
@@ -98,7 +114,8 @@ def load_latents(ckpt_path):
 def build_dataset():
     # 1. 加载隐向量 z
     try:
-        z_all = load_latents(CONFIG['CKPT_PATH'])
+        latents_path = resolve_latents_path()
+        z_all = load_latents(latents_path)
     except Exception as e:
         print(f"Error loading latents: {e}")
         return

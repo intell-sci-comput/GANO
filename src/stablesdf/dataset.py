@@ -1,4 +1,9 @@
-# dataset.py
+"""
+代码说明：
+Stable-SDF 多场景 NPZ 数据集封装。
+将多个形状的 SDF 采样点合并为可供 DeepSDF 训练使用的 scene_id、point、sdf 三元组。
+"""
+
 import torch
 from torch.utils.data import Dataset
 import numpy as np
