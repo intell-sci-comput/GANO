@@ -1,0 +1,26 @@
+src/car/gi_transolver.py
+  s_af499f3f10c73f::t_c0b61ea57b377d 1-281
+scripts/car/train_gi_transolver_car.py
+  s_af499f3f10c73f::t_de018240e3523d 1-33,58,97-121,128-467,469-659,661-730
+  s_af499f3f10c73f::t_f38875a61827fe 34-47,59-96
+  s_af499f3f10c73f::t_b0abaccb443270 48-57,122-127
+  s_af499f3f10c73f::t_6f1b9e3769c6a5 468,660
+scripts/car/optimize_vehicle.py
+  s_af499f3f10c73f::t_ae81946e2e61c6 2-5,8,11-13,15-16,18-19,29-31,34-103,107-112,115-148,150-164,166-659,662-667
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ad18af0e92edc59988b86294c42c0baf96e5811f",
+  "prompts": {},
+  "sessions": {
+    "s_af499f3f10c73f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e6e10-78f0-7062-93a2-27c3a6a6d685",
+        "model": "gpt-5.5"
+      },
+      "human_author": "coClouds <jktangpersonal@126.com>"
+    }
+  }
+}
