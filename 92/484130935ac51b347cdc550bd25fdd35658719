@@ -1,0 +1,14 @@
+.gitignore
+  h_07bd16054361e0 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "92484130935ac51b347cdc550bd25fdd35658719",
+  "prompts": {},
+  "humans": {
+    "h_07bd16054361e0": {
+      "author": "coClouds <jktangpersonal@126.com>"
+    }
+  }
+}
