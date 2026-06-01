@@ -133,8 +133,12 @@ def solve_scattered_fields_for_sample(mask, sample_idx):
 
 def visualize_full_batch(sample_fields, mask, save_path):
     """检查散射场可视化"""
-    n_show = 5
-    fig, axes = plt.subplots(1, n_show + 1, figsize=(18, 4))
+    n_show = min(5, sample_fields.shape[0])
+    if n_show == 0:
+        print("[!] 跳过散射场可视化: 当前样本没有可显示的入射角数据。")
+        return
+
+    fig, axes = plt.subplots(1, n_show + 1, figsize=(3 * (n_show + 1), 4))
     
     axes[0].imshow(mask, origin='lower', cmap='gray')
     axes[0].set_title("Target Mask")
@@ -147,7 +151,7 @@ def visualize_full_batch(sample_fields, mask, save_path):
         ax.set_title(f"Scattered Field {i}")
         ax.axis('off')
     
-    plt.colorbar(im, ax=axes[-1], fraction=0.046, pad=0.04)
+    plt.colorbar(im, ax=axes[1:], fraction=0.046, pad=0.04)
     plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
