@@ -17,17 +17,30 @@ from joblib import Parallel, delayed
 import os
 import time
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
 # ==========================================
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
     # --- 物理场与网格配置 ---
-    'resolution': 256,       # 网格分辨率
-    'domain_size': 2.0,      # 物理计算域大小
-    'k': 7.0,                # 波数 (wavenumber)
-    'n_angles': 10,          # 入射波的角度数量
-    'pml_width': 30,         # 完全匹配层 (PML) 宽度
-    'pml_sigma': 8.0,        # PML 最大吸收系数
+    'resolution': env_int("GANO_HH_PDE_RESOLUTION", 256),  # 网格分辨率
+    'domain_size': env_float("GANO_HH_PDE_DOMAIN_SIZE", 2.0),  # 物理计算域大小
+    'k': env_float("GANO_HH_PDE_K", 7.0),  # 波数 (wavenumber)
+    'n_angles': env_int("GANO_HH_PDE_N_ANGLES", 10),  # 入射波的角度数量
+    'pml_width': env_int("GANO_HH_PDE_PML_WIDTH", 30),  # 完全匹配层 (PML) 宽度
+    'pml_sigma': env_float("GANO_HH_PDE_PML_SIGMA", 8.0),  # PML 最大吸收系数
     
     # --- 路径配置 (相对当前脚本路径) ---
     'data_dir': "../../data/hh",               # 数据统一存放目录
@@ -37,9 +50,18 @@ CONFIG = {
     'vis_name': "scat_field_dataset_check.png",
     
     # --- 运行配置 ---
-    'n_jobs': 32,            # 并行核心数 (根据服务器配置调整，原代码为32)
+    'n_jobs': env_int("GANO_HH_PDE_N_JOBS", 32),  # 并行核心数
     'verbose': 5             # 并行执行的日志等级
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        'resolution': env_int("GANO_HH_PDE_SMOKE_RESOLUTION", 64),
+        'n_angles': env_int("GANO_HH_PDE_SMOKE_N_ANGLES", 2),
+        'pml_width': env_int("GANO_HH_PDE_SMOKE_PML_WIDTH", 8),
+        'n_jobs': env_int("GANO_HH_PDE_SMOKE_N_JOBS", 1),
+        'verbose': 0,
+    })
 
 # ==========================================
 # 核心求解逻辑 (保持原有数学逻辑不变)

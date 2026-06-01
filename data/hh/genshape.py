@@ -13,14 +13,22 @@ from scipy.ndimage import distance_transform_edt, map_coordinates
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==========================================
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
     # --- 数据集规模配置 ---
-    "num_samples": 1000,               # 生成样本的总数
-    "resolution": 256,                 # 物理场的网格分辨率 (256x256)
-    "num_points": 10000,               # 每个样本采样的点数量 (包括边界点和全局点)
+    "num_samples": env_int("GANO_HH_SHAPE_NUM_SAMPLES", 1000),  # 生成样本的总数
+    "resolution": env_int("GANO_HH_SHAPE_RESOLUTION", 256),     # 物理场的网格分辨率
+    "num_points": env_int("GANO_HH_SHAPE_NUM_POINTS", 10000),   # 每个样本采样的点数量
     
     # --- 形状生成配置 ---
     "base_radius": 0.3,                # 基础半径
@@ -35,9 +43,17 @@ CONFIG = {
     "vis_save_name": "shape_sample_check.png",
     
     # --- 运行配置 ---
-    "n_jobs": -1,                      # 并行核心数 (-1 表示跑满 CPU)
+    "n_jobs": env_int("GANO_HH_SHAPE_N_JOBS", -1),  # 并行核心数 (-1 表示跑满 CPU)
     "visualize_first_sample": True     # 是否在生成结束后可视化第一个样本
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "num_samples": env_int("GANO_HH_SHAPE_SMOKE_NUM_SAMPLES", 2),
+        "resolution": env_int("GANO_HH_SHAPE_SMOKE_RESOLUTION", 64),
+        "num_points": env_int("GANO_HH_SHAPE_SMOKE_NUM_POINTS", 256),
+        "n_jobs": env_int("GANO_HH_SHAPE_SMOKE_N_JOBS", 1),
+    })
 
 
 # ==========================================

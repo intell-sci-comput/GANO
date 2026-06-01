@@ -30,14 +30,38 @@ from src.car.gi_transolver import Transolver
 from src.car.model import DeepSDFNet
 
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 CONFIG = {
-    # --- zhangrui A100 上的默认路径，按实际数据位置修改 ---
+    # --- 默认仓库路径；服务器真实路径可通过 GANO_CAR_OPT_* 环境变量覆盖 ---
     "CAR_ID": "E_S_WW_WM_395",
-    "PARTS_ROOT_DIR": "/home/zhangrui/zhangruiC/car/parts",
-    "Z_PATH": "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/latents_latest.pth",
-    "FILE_LIST_PATH": "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/file_list.json",
-    "SDF_CKPT": "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/model_latest.pth",
-    "PHYSICS_CKPT": "/home/zhangrui/sunguoze233/transolver+/checkpoints_pressure/transolver_sdf_normals_20260110_131948/best_model.pth",
+    "PARTS_ROOT_DIR": env_path("GANO_CAR_OPT_PARTS_ROOT", os.path.join(project_root, "data", "car", "parts")),
+    "Z_PATH": env_path(
+        "GANO_CAR_OPT_Z_PATH",
+        os.path.join(project_root, "checkpoints", "car_training_h800_all", "latents_latest.pth"),
+    ),
+    "FILE_LIST_PATH": env_path(
+        "GANO_CAR_OPT_FILE_LIST_PATH",
+        os.path.join(project_root, "checkpoints", "car_training_h800_all", "file_list.json"),
+    ),
+    "SDF_CKPT": env_path(
+        "GANO_CAR_OPT_SDF_CKPT",
+        os.path.join(project_root, "checkpoints", "car_training_h800_all", "model_latest.pth"),
+    ),
+    "PHYSICS_CKPT": env_path(
+        "GANO_CAR_OPT_PHYSICS_CKPT",
+        os.path.join(project_root, "checkpoints", "car_transolver", "best_model.pth"),
+    ),
 
     # --- 压力和几何归一化 ---
     "GLOBAL_MEAN": -93.427311,
@@ -102,6 +126,19 @@ CONFIG = {
     "MESH_RESOLUTION": 512,
     "MESH_CHUNK_SIZE": 65536,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "STEPS": env_int("GANO_CAR_OPT_SMOKE_STEPS", 1),
+        "N_CONSTRAINT_POINTS": env_int("GANO_CAR_OPT_SMOKE_CONSTRAINT_POINTS", 4),
+        "PROJECTION_STEPS": env_int("GANO_CAR_OPT_SMOKE_PROJECTION_STEPS", 1),
+        "TOTAL_SAMPLE_POINTS": env_int("GANO_CAR_OPT_SMOKE_SAMPLE_POINTS", 256),
+        "KNN_CHUNK_SIZE": env_int("GANO_CAR_OPT_SMOKE_KNN_CHUNK_SIZE", 256),
+        "SDF_NORMAL_CHUNK": env_int("GANO_CAR_OPT_SMOKE_NORMAL_CHUNK", 128),
+        "SAVE_INTERVAL": 1,
+        "MESH_RESOLUTION": env_int("GANO_CAR_OPT_SMOKE_MESH_RESOLUTION", 32),
+        "MESH_CHUNK_SIZE": env_int("GANO_CAR_OPT_SMOKE_MESH_CHUNK_SIZE", 4096),
+    })
 
 
 def set_seed(seed=42):

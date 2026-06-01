@@ -18,23 +18,38 @@ warnings.filterwarnings("ignore")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
 CONFIG = {
     # --- 路径配置 ---
-    # 原始机翼数据文件位置 (A100服务器)
-    "DATA_FILE": "/home/sunguoze/airfoil/airfoil_9k_data.h5", 
+    # 原始机翼数据文件；服务器真实路径可通过 GANO_AIRFOIL_H5_PATH 覆盖。
+    "DATA_FILE": env_path(
+        "GANO_AIRFOIL_H5_PATH",
+        os.path.join(project_root, "data", "airfoil", "raw", "airfoil_9k_data.h5"),
+    ),
     # 处理后数据的统一保存路径
-    "SAVE_DIR": os.path.join(project_root, "data", "airfoil"),
+    "SAVE_DIR": env_path("GANO_AIRFOIL_SDF_SAVE_DIR", os.path.join(project_root, "data", "airfoil")),
     "SAVE_NAME": "airfoil_sdf_train.pt",
 
     # --- 数据集处理控制 ---
     # 设为 None 处理所有数据，或设为整数(如 100)用于快速跑通测试
-    "NUM_SHAPES_TO_PROCESS": None, 
+    "NUM_SHAPES_TO_PROCESS": None,
 
     # --- 总体采样超参数 ---
-    "NUM_SAMPLES": 4096,                 # 每个翼型的采样点数
+    "NUM_SAMPLES": env_int("GANO_AIRFOIL_SDF_NUM_SAMPLES", 4096),  # 每个翼型的采样点数
     "BOUNDS": [-0.2, 1.2, -0.25, 0.25],  # 采样空间边界 [x_min, x_max, y_min, y_max]
 
     # --- 混合采样策略分布 ---
@@ -45,6 +60,12 @@ CONFIG = {
     "SIGMA_SMALL": 0.005,                # 小高斯噪声标准差
     "SIGMA_LARGE": 0.05,                 # 大高斯噪声标准差
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "NUM_SHAPES_TO_PROCESS": env_int("GANO_AIRFOIL_SDF_SMOKE_SHAPES", 2),
+        "NUM_SAMPLES": env_int("GANO_AIRFOIL_SDF_SMOKE_NUM_SAMPLES", 128),
+    })
 
 os.makedirs(CONFIG["SAVE_DIR"], exist_ok=True)
 

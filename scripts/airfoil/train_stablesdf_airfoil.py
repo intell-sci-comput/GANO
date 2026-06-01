@@ -21,6 +21,19 @@ sys.path.append(project_root)
 
 from src.airfoil.model import DeepSDFWithPE
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
@@ -36,15 +49,23 @@ CONFIG = {
     "NUM_FREQS": 6,
 
     # --- 训练超参数 ---
-    "BATCH_SIZE": 128,       # 这里的 Batch 是指 "同时训练的机翼数量"
-    "NUM_EPOCHS": 1000,
-    "LR": 5e-4,
+    "BATCH_SIZE": env_int("GANO_AIRFOIL_STABLESDF_BATCH_SIZE", 128),  # 这里的 Batch 是指 "同时训练的机翼数量"
+    "NUM_EPOCHS": env_int("GANO_AIRFOIL_STABLESDF_EPOCHS", 1000),
+    "LR": env_float("GANO_AIRFOIL_STABLESDF_LR", 5e-4),
     "LATENT_REG": 1e-4,      # 对 Latent Code 的 L2 正则化权重
 
     # --- 日志与保存频率 ---
     "LOG_EVERY": 10,
     "SAVE_EVERY": 100,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "BATCH_SIZE": env_int("GANO_AIRFOIL_STABLESDF_SMOKE_BATCH_SIZE", 1),
+        "NUM_EPOCHS": env_int("GANO_AIRFOIL_STABLESDF_SMOKE_EPOCHS", 1),
+        "LOG_EVERY": 1,
+        "SAVE_EVERY": 1,
+    })
 
 os.makedirs(CONFIG["SAVE_DIR"], exist_ok=True)
 

@@ -18,16 +18,32 @@ warnings.filterwarnings("ignore")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
 CONFIG = {
-    # --- 输入文件路径 (指向 A100 上的原位置，避免复制 56GB 巨型文件) ---
-    'H5_PATH': '/home/sunguoze/airfoil/airfoil_9k_data.h5',          
-    'LATENTS_PATH': os.path.join(project_root, 'checkpoints', 'airfoil_stablesdf', 'latents_latest.pth'),
-    'FALLBACK_LATENTS_PATHS': [
-        '/home/sunguoze/airfoil/deepsdf_airfoil.pth',
-    ],
+    # --- 输入文件路径；服务器真实路径可通过环境变量覆盖 ---
+    'H5_PATH': env_path(
+        'GANO_AIRFOIL_H5_PATH',
+        os.path.join(project_root, 'data', 'airfoil', 'raw', 'airfoil_9k_data.h5'),
+    ),
+    'LATENTS_PATH': env_path(
+        'GANO_AIRFOIL_LATENTS_PATH',
+        os.path.join(project_root, 'checkpoints', 'airfoil_stablesdf', 'latents_latest.pth'),
+    ),
+    'FALLBACK_LATENTS_PATHS': [],
     
     # --- 输出文件路径 ---
     'SAVE_PATH': os.path.join(project_root, 'data', 'airfoil', 'airfoil_physics_train.pt'),
@@ -42,8 +58,13 @@ CONFIG = {
     
     # --- 调试选项 ---
     # 设为整数(如 10)可只处理前 N 个样本用于快速测试，None 处理全部
-    'PROCESS_LIMIT': None 
+    'PROCESS_LIMIT': None
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        'PROCESS_LIMIT': env_int('GANO_AIRFOIL_PHYSICS_SMOKE_LIMIT', 2),
+    })
 
 # 确保输出目录存在
 os.makedirs(os.path.dirname(CONFIG['SAVE_PATH']), exist_ok=True)

@@ -27,25 +27,57 @@ if project_root not in sys.path:
 from src.hh.gi_transolver import Model as TransolverModel
 from src.hh.model import DeepSDFWithPE
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
 # ==========================================
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
     # --- 预训练模型与统计路径 (必须保证这些文件存在) ---
-    "deepsdf_ckpt": "../../checkpoints/hh/stablesdf/deepsdf_final.pth",
-    "transolver_ckpt": "../../checkpoints/hh/transolver/best_transolver.pth",
-    "norm_stats": "../../data/hh/normalization_stats.pt",  # 注意后缀是 .pt，由 normalize_pde.py 生成
-    "output_dir": "../../output/hh/inverse_vis",
+    "deepsdf_ckpt": env_path("GANO_HH_OPT_DEEPSDF_CKPT", os.path.join(project_root, "checkpoints", "hh", "stablesdf", "deepsdf_final.pth")),
+    "transolver_ckpt": env_path("GANO_HH_OPT_TRANSOLVER_CKPT", os.path.join(project_root, "checkpoints", "hh", "transolver", "best_transolver.pth")),
+    "norm_stats": env_path("GANO_HH_OPT_NORM_STATS", os.path.join(project_root, "data", "hh", "normalization_stats.pt")),
+    "output_dir": env_path("GANO_HH_OPT_OUTPUT_DIR", os.path.join(project_root, "output", "hh", "inverse_vis")),
     
     # --- 反演优化配置 ---
-    "num_sensors": 100,        # 传感器采样点数量
-    "optim_steps": 100,        # OneCycleLR 优化步数 (想快可以改成更小测试)
-    "max_lr": 0.01,            # 优化最大学习率
+    "num_sensors": env_int("GANO_HH_OPT_NUM_SENSORS", 100),  # 传感器采样点数量
+    "optim_steps": env_int("GANO_HH_OPT_STEPS", 100),  # OneCycleLR 优化步数
+    "max_lr": env_float("GANO_HH_OPT_MAX_LR", 0.01),  # 优化最大学习率
     "reg_weight": 1e-4,        # Latent z 正则化系数
+    "fdm_resolution": env_int("GANO_HH_OPT_FDM_RESOLUTION", 256),
+    "random_context_points": env_int("GANO_HH_OPT_RANDOM_CONTEXT_POINTS", 4096),
     "device": "cuda" if torch.cuda.is_available() else "cpu"
 }
 
-FIXED_ANGLES = np.linspace(0, 2*np.pi, 10, endpoint=False).astype(np.float32)
+if SMOKE_TEST:
+    CONFIG.update({
+        "num_sensors": env_int("GANO_HH_OPT_SMOKE_NUM_SENSORS", 8),
+        "optim_steps": env_int("GANO_HH_OPT_SMOKE_STEPS", 1),
+        "fdm_resolution": env_int("GANO_HH_OPT_SMOKE_FDM_RESOLUTION", 64),
+        "random_context_points": env_int("GANO_HH_OPT_SMOKE_RANDOM_CONTEXT_POINTS", 128),
+    })
+
+FIXED_ANGLES = np.linspace(
+    0,
+    2 * np.pi,
+    env_int("GANO_HH_OPT_SMOKE_N_ANGLES", 2) if SMOKE_TEST else env_int("GANO_HH_OPT_N_ANGLES", 10),
+    endpoint=False,
+).astype(np.float32)
 
 # ==========================================
 # 1. 形状生成与 FDM 求解 (保持原有数学逻辑)
@@ -72,8 +104,8 @@ def generate_random_shape(resolution=256):
     return mask
 
 def solve_fdm_multiview(mask):
-    N = 256; k = 7.0; domain = 2.0; h = domain/(N-1)
-    pml_w = 30; pml_s = 8.0
+    N = mask.shape[0]; k = 7.0; domain = 2.0; h = domain/(N-1)
+    pml_w = min(30, max(2, N // 8)); pml_s = 8.0
     sx = np.zeros(N); sy = np.zeros(N)
     for i in range(pml_w):
         v = ((pml_w-i)/pml_w)**2 * pml_s
@@ -138,7 +170,7 @@ def inverse_solve_onecycle(phys_model, sensor_coords, sensor_values_all, device,
     std_t = std.to(device).view(1, 1, 2).float()
     gt_norm = (gt_batch - mean_t) / (std_t + 1e-8)
 
-    Ns, Nrand = coords_sensor.shape[1], 4096
+    Ns, Nrand = coords_sensor.shape[1], CONFIG["random_context_points"]
     coords_rand = (torch.rand(n_angles, Nrand, 2, device=device) * 2.0 - 1.0) 
     coords_all = torch.cat([coords_sensor, coords_rand], dim=1)               
 
@@ -169,11 +201,10 @@ def inverse_solve_onecycle(phys_model, sensor_coords, sensor_values_all, device,
 # 3. 主流程与画图
 # ==========================================
 def main():
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    deepsdf_ckpt = os.path.normpath(os.path.join(cur_dir, CONFIG["deepsdf_ckpt"]))
-    transolver_ckpt = os.path.normpath(os.path.join(cur_dir, CONFIG["transolver_ckpt"]))
-    norm_stats_path = os.path.normpath(os.path.join(cur_dir, CONFIG["norm_stats"]))
-    output_dir = os.path.normpath(os.path.join(cur_dir, CONFIG["output_dir"]))
+    deepsdf_ckpt = os.path.normpath(CONFIG["deepsdf_ckpt"])
+    transolver_ckpt = os.path.normpath(CONFIG["transolver_ckpt"])
+    norm_stats_path = os.path.normpath(CONFIG["norm_stats"])
+    output_dir = os.path.normpath(CONFIG["output_dir"])
     
     os.makedirs(output_dir, exist_ok=True)
     device = torch.device(CONFIG["device"])
@@ -197,7 +228,7 @@ def main():
 
     # ---- 步骤 1: 生成真值 ----
     print("\n[*] Step 1: 生成随机形状与 FDM 真实物理场...")
-    mask_gt = generate_random_shape()
+    mask_gt = generate_random_shape(resolution=CONFIG["fdm_resolution"])
     fields_gt = solve_fdm_multiview(mask_gt)
     
     # ---- 步骤 2: 采样传感器数据 ----
@@ -212,13 +243,14 @@ def main():
     # ---- 步骤 4: 重建形状 ----
     print("\n[*] Step 3: 根据优化出的 z 重建形状并绘制对比图...")
     with torch.no_grad():
-        x = np.linspace(-1, 1, 256)
-        y = np.linspace(-1, 1, 256)
+        res = CONFIG["fdm_resolution"]
+        x = np.linspace(-1, 1, res)
+        y = np.linspace(-1, 1, res)
         xv, yv = np.meshgrid(x, y)
         grid = torch.tensor(np.stack([xv.flatten(), yv.flatten()], axis=1), dtype=torch.float32).to(device).unsqueeze(0)
         
         z_exp = z_inverted.unsqueeze(1).expand(-1, grid.shape[1], -1)
-        sdf_pred = sdf_model(grid, z_exp).view(256, 256).cpu().numpy()
+        sdf_pred = sdf_model(grid, z_exp).view(res, res).cpu().numpy()
         mask_pred = (sdf_pred < 0).astype(float)
 
     # ---- 步骤 5: 绘图与保存 ----
@@ -266,7 +298,7 @@ def main():
         std_t = std.to(device).view(1, 1, 2)
         pred_real = pred_norm * std_t + mean_t
         pred_np = pred_real[0].cpu().numpy()
-        u_ai = (pred_np[:,0] + 1j*pred_np[:,1]).reshape(256, 256)
+        u_ai = (pred_np[:,0] + 1j*pred_np[:,1]).reshape(CONFIG["fdm_resolution"], CONFIG["fdm_resolution"])
         
     ax5 = fig.add_subplot(gs[1, 1])
     ax5.imshow(u_ai.real, origin='lower', cmap='RdBu', vmin=-vmax, vmax=vmax)
@@ -278,8 +310,9 @@ def main():
     
     # 图8: 传感器分布
     ax7 = fig.add_subplot(gs[1, 3])
-    ax7.imshow(np.zeros((256,256)), cmap='gray')
-    ax7.scatter((sensor_coords[:,0]+1)/2*255, (sensor_coords[:,1]+1)/2*255, s=2, c='cyan')
+    res = CONFIG["fdm_resolution"]
+    ax7.imshow(np.zeros((res, res)), cmap='gray')
+    ax7.scatter((sensor_coords[:,0]+1)/2*(res - 1), (sensor_coords[:,1]+1)/2*(res - 1), s=2, c='cyan')
     ax7.set_title("Sensor Distribution"); ax7.axis('off')
     
     plt.tight_layout()

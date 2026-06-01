@@ -15,13 +15,21 @@ from joblib import Parallel, delayed
 import os
 import time
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==========================================
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
     # --- 采样与噪声配置 ---
-    'num_points': 10000,     # 每个样本的总采样点数
-    'resolution': 256,       # 网格分辨率
+    'num_points': env_int("GANO_HH_SDF_NUM_POINTS", 10000),  # 每个样本的总采样点数
+    'resolution': env_int("GANO_HH_SDF_RESOLUTION", 256),    # 网格分辨率
     'ratios': {
         'fine': 0.4,         # 精细表面采样占比 40%
         'coarse': 0.4,       # 粗略表面采样占比 40%
@@ -40,9 +48,17 @@ CONFIG = {
     'vis_name': "final_dataset_check.png",
     
     # --- 运行配置 ---
-    'n_jobs': -1,            # 并行核心数 (-1 表示跑满 CPU)
+    'n_jobs': env_int("GANO_HH_SDF_N_JOBS", -1),  # 并行核心数 (-1 表示跑满 CPU)
     'verbose': 5             # 并行执行的日志等级
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        'num_points': env_int("GANO_HH_SDF_SMOKE_NUM_POINTS", 256),
+        'resolution': env_int("GANO_HH_SDF_SMOKE_RESOLUTION", 64),
+        'n_jobs': env_int("GANO_HH_SDF_SMOKE_N_JOBS", 1),
+        'verbose': 0,
+    })
 
 # ==========================================
 # 核心处理函数 (保持数学采样逻辑不变)

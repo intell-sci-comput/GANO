@@ -33,8 +33,7 @@ from src.car.model import DeepSDFNet
 
 def first_existing_path(env_name, *candidates):
     """
-    支持在 H800 和 zhangrui A100 间切换路径。
-    设置 env_name 环境变量时优先使用环境变量；否则返回第一个存在的候选路径。
+    设置 env_name 环境变量时优先使用环境变量；否则返回第一个存在的仓库内候选路径。
     """
     override = os.environ.get(env_name)
     if override:
@@ -55,44 +54,35 @@ def env_float(env_name, default):
     return float(value) if value is not None and value != "" else default
 
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
 CONFIG = {
     # --- 数据与权重路径 ---
-    # 优先适配 H800；如果需要手动指定，可设置对应 GANO_CAR_* 环境变量。
+    # 默认使用仓库内 data/checkpoints；服务器真实路径可设置对应 GANO_CAR_* 环境变量。
     "PRESSURE_DIR": first_existing_path(
         "GANO_CAR_PRESSURE_DIR",
-        "/mnt/sunguoze/processed_data/car_pressure_all",
-        "/home/zhangrui/zhangruiC/car/pressure_all",
+        os.path.join(project_root, "data", "car", "pressure"),
     ),
     "Z_PATH": first_existing_path(
         "GANO_CAR_Z_PATH",
         os.path.join(project_root, "checkpoints", "car_training_h800_all", "latents_latest.pth"),
-        "/home/sunguoze/GANO/checkpoints/car_training_h800_all/latents_latest.pth",
-        "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/latents_latest.pth",
-        "/home/zhangrui/sunguoze233/trained_ds_all/latents_latest.pth",
     ),
     "Z_JSON": first_existing_path(
         "GANO_CAR_Z_JSON",
         os.path.join(project_root, "checkpoints", "car_training_h800_all", "file_list.json"),
-        "/home/sunguoze/GANO/checkpoints/car_training_h800_all/file_list.json",
-        "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/file_list.json",
-        "/home/zhangrui/sunguoze233/trained_ds_all/file_list.json",
     ),
     "TRAIN_LIST": first_existing_path(
         "GANO_CAR_TRAIN_LIST",
         os.path.join(project_root, "data", "car", "split", "train.txt"),
-        "/home/zhangrui/zhangruiC/car/split/train.txt",
     ),
     "VAL_LIST": first_existing_path(
         "GANO_CAR_VAL_LIST",
         os.path.join(project_root, "data", "car", "split", "test.txt"),
-        "/home/zhangrui/zhangruiC/car/split/test.txt",
     ),
     "SDF_CKPT": first_existing_path(
         "GANO_CAR_SDF_CKPT",
         os.path.join(project_root, "checkpoints", "car_training_h800_all", "model_latest.pth"),
-        "/home/sunguoze/GANO/checkpoints/car_training_h800_all/model_latest.pth",
-        "/home/zhangrui/zhangruiC/car/latent/car_training_h800_all/model_latest.pth",
-        "/home/zhangrui/sunguoze233/trained_ds_all/model_latest.pth",
     ),
 
     # --- 仓库规范输出路径 ---
@@ -147,6 +137,17 @@ CONFIG = {
     "BENCH_WARMUP": 10,
     "BENCH_ITERS": 50,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "NUM_POINTS": env_int("GANO_CAR_TRANSOLVER_SMOKE_NUM_POINTS", 128),
+        "BATCH_SIZE": env_int("GANO_CAR_TRANSOLVER_SMOKE_BATCH_SIZE", 1),
+        "EPOCHS": env_int("GANO_CAR_TRANSOLVER_SMOKE_EPOCHS", 1),
+        "NUM_WORKERS": env_int("GANO_CAR_TRANSOLVER_SMOKE_NUM_WORKERS", 0),
+        "WARMUP_EPOCHS": 0,
+        "SDF_NORMAL_CHUNK": env_int("GANO_CAR_TRANSOLVER_SMOKE_NORMAL_CHUNK", 128),
+        "BENCH_ENABLE": False,
+    })
 
 
 def get_id_from_path(path_or_name):

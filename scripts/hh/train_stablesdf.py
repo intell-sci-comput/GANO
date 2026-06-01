@@ -21,14 +21,31 @@ if project_root not in sys.path:
 
 from src.hh.model import DeepSDFWithPE
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
 # ==========================================
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
-    # --- 路径配置 (相对当前脚本) ---
-    "data_path": "../../data/hh/scattering_sdf_dataset_mixed.npz",
-    "ckpt_dir": "../../checkpoints/hh/stablesdf",
-    "output_dir": "../../output/hh/stablesdf_vis",
+    # --- 路径配置 ---
+    "data_path": env_path("GANO_HH_STABLESDF_DATA_PATH", os.path.join(project_root, "data", "hh", "scattering_sdf_dataset_mixed.npz")),
+    "ckpt_dir": env_path("GANO_HH_STABLESDF_CKPT_DIR", os.path.join(project_root, "checkpoints", "hh", "stablesdf")),
+    "output_dir": env_path("GANO_HH_STABLESDF_OUTPUT_DIR", os.path.join(project_root, "output", "hh", "stablesdf_vis")),
     
     # --- 模型结构配置 ---
     "latent_dim": 64,
@@ -37,17 +54,25 @@ CONFIG = {
     "num_freqs": 6,
     
     # --- 训练超参数 ---
-    "batch_size": 128,
-    "epochs": 1000,
-    "lr": 1e-4,
+    "batch_size": env_int("GANO_HH_STABLESDF_BATCH_SIZE", 128),
+    "epochs": env_int("GANO_HH_STABLESDF_EPOCHS", 1000),
+    "lr": env_float("GANO_HH_STABLESDF_LR", 1e-4),
     "clamp_dist": 0.05,       # SDF 截断阈值
     "reg_weight": 1e-4,       # Latent 正则化权重
     
     # --- 运行控制 ---
-    "save_interval": 20,      # 保存与可视化的间隔 Epoch
-    "num_workers": 4,
+    "save_interval": env_int("GANO_HH_STABLESDF_SAVE_INTERVAL", 20),  # 保存与可视化的间隔 Epoch
+    "num_workers": env_int("GANO_HH_STABLESDF_NUM_WORKERS", 4),
     "device": 'cuda' if torch.cuda.is_available() else 'cpu'
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "batch_size": env_int("GANO_HH_STABLESDF_SMOKE_BATCH_SIZE", 1),
+        "epochs": env_int("GANO_HH_STABLESDF_SMOKE_EPOCHS", 1),
+        "save_interval": 1,
+        "num_workers": env_int("GANO_HH_STABLESDF_SMOKE_NUM_WORKERS", 0),
+    })
 
 # ==========================================
 # 数据集定义
@@ -105,10 +130,9 @@ def visualize_reconstruction(model, latents, idx, epoch, device, output_dir):
 # ==========================================
 def main():
     # 1. 目录准备
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_path = os.path.normpath(os.path.join(current_dir, CONFIG["data_path"]))
-    ckpt_dir = os.path.normpath(os.path.join(current_dir, CONFIG["ckpt_dir"]))
-    output_dir = os.path.normpath(os.path.join(current_dir, CONFIG["output_dir"]))
+    data_path = os.path.normpath(CONFIG["data_path"])
+    ckpt_dir = os.path.normpath(CONFIG["ckpt_dir"])
+    output_dir = os.path.normpath(CONFIG["output_dir"])
     
     os.makedirs(ckpt_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)

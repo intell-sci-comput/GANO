@@ -34,6 +34,14 @@ sys.path.append(project_root)
 from src.airfoil.gi_transolver import GITransolver
 from src.airfoil.model import DeepSDFWithPE
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
@@ -90,6 +98,17 @@ CONFIG = {
     "SAVE_FIG": True,
     "SAVE_NPZ": True,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "STEPS": env_int("GANO_AIRFOIL_OPT_SMOKE_STEPS", 1),
+        "RES": env_int("GANO_AIRFOIL_OPT_SMOKE_RES", 32),
+        "SDF_RES_EXPORT": env_int("GANO_AIRFOIL_OPT_SMOKE_SDF_RES_EXPORT", 32),
+        "PRED_CHUNK": env_int("GANO_AIRFOIL_OPT_SMOKE_PRED_CHUNK", 4096),
+        "CTX_MAX": env_int("GANO_AIRFOIL_OPT_SMOKE_CTX_MAX", 2048),
+        "NEAR_MIN_POINTS": env_int("GANO_AIRFOIL_OPT_SMOKE_NEAR_MIN_POINTS", 128),
+        "FAR_STRIDE": env_int("GANO_AIRFOIL_OPT_SMOKE_FAR_STRIDE", 16),
+    })
 
 def ensure_dir(p: str):
     os.makedirs(p, exist_ok=True)

@@ -23,23 +23,46 @@ except ImportError:
     def tqdm(iterable, total=None, desc=None):
         return iterable
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==============================================================================
 # ======= [全局参数配置字典] ================
 # ==============================================================================
 CONFIG = {
     # --- 路径配置 ---
-    # 汽车原始数据根目录
-    "DATA_ROOT": "/mnt/sunguoze/3DMeshesSTL",
+    # 汽车原始数据根目录；服务器真实路径可通过 GANO_CAR_MESH_ROOT 覆盖。
+    "DATA_ROOT": env_path(
+        "GANO_CAR_MESH_ROOT",
+        os.path.join(project_root, "data", "car", "raw", "3DMeshesSTL"),
+    ),
     # 统一的输出目录（会在此目录下自动重建子文件夹结构）
-    "SAVE_DIR": "/mnt/sunguoze/processed_data/car_sdf_hybrid",
+    "SAVE_DIR": env_path("GANO_CAR_SDF_DIR", os.path.join(project_root, "data", "car", "sdf")),
     
     # --- 采样超参数 ---
-    "TOTAL_SAMPLES": 100000,
+    "TOTAL_SAMPLES": env_int("GANO_CAR_SDF_TOTAL_SAMPLES", 100000),
     
     # --- 并发配置 ---
-    "NUM_WORKERS": 32,
+    "NUM_WORKERS": env_int("GANO_CAR_SDF_NUM_WORKERS", 32),
     "FILE_EXTENSION": "*.stl"
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "TOTAL_SAMPLES": env_int("GANO_CAR_SDF_SMOKE_TOTAL_SAMPLES", 256),
+        "NUM_WORKERS": env_int("GANO_CAR_SDF_SMOKE_NUM_WORKERS", 1),
+    })
 
 # ==============================================================================
 # 单个网格处理核心逻辑 (算法逻辑保持原样不变)

@@ -15,15 +15,32 @@ import json
 import multiprocessing as mp
 from tqdm import tqdm
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # ==============================================================================
 # ======= [全局参数配置字典] ================
 # ==============================================================================
 CONFIG = {
     # --- 路径配置 ---
-    # 汽车物理场(压强)原始数据根目录
-    "DATA_ROOT": "/mnt/sunguoze/pressure/PressureVTK/",
+    # 汽车物理场(压强)原始数据根目录；服务器真实路径可通过 GANO_CAR_PRESSURE_RAW_ROOT 覆盖。
+    "DATA_ROOT": env_path(
+        "GANO_CAR_PRESSURE_RAW_ROOT",
+        os.path.join(project_root, "data", "car", "raw", "PressureVTK"),
+    ),
     # 统一的输出目录
-    "SAVE_DIR": "/mnt/sunguoze/processed_data/car_pressure_all",
+    "SAVE_DIR": env_path("GANO_CAR_PRESSURE_DIR", os.path.join(project_root, "data", "car", "pressure")),
     
     # --- 压强全局统计量 ---
     "GLOBAL_MEAN": -93.427311,
@@ -33,9 +50,14 @@ CONFIG = {
     "TARGET_SCALE": 1.9,
     
     # --- 并发配置 ---
-    "NUM_WORKERS": 32,
+    "NUM_WORKERS": env_int("GANO_CAR_PRESSURE_NUM_WORKERS", 32),
     "FILE_EXTENSION": "*.vtk"
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "NUM_WORKERS": env_int("GANO_CAR_PRESSURE_SMOKE_NUM_WORKERS", 1),
+    })
 
 # ==========================================
 # 1. 核心数学组件

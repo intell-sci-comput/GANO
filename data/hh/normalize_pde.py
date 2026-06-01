@@ -10,12 +10,26 @@ import os
 import numpy as np
 import torch
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
 # 配置路径
 CONFIG = {
     "load_path": "../../data/hh/scattering_dataset_scat_fields_k7.npz",
     "save_npz": "../../data/hh/scattering_dataset_normalized.npz",
-    "save_pt": "../../data/hh/normalization_stats.pt" # 专供反演脚本调用
+    "save_pt": "../../data/hh/normalization_stats.pt", # 专供反演脚本调用
+    "sample_limit": None,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "sample_limit": env_int("GANO_HH_NORMALIZE_SMOKE_SAMPLE_LIMIT", 2),
+    })
 
 def main():
     cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +44,8 @@ def main():
     print(f"[*] 加载原始 PDE 场数据: {load_path}")
     data = np.load(load_path)
     fields_complex = data['fields']  # Shape: (N, A, 256, 256)
+    if CONFIG["sample_limit"] is not None:
+        fields_complex = fields_complex[: CONFIG["sample_limit"]]
 
     print("[*] 正在拆分复数 (提取实部和虚部)...")
     fields_real = np.real(fields_complex)

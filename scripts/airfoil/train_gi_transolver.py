@@ -24,6 +24,19 @@ sys.path.append(project_root)
 
 from src.airfoil.gi_transolver import GITransolver
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
@@ -38,13 +51,13 @@ CONFIG = {
     "LOG_FILE": os.path.join(project_root, "output", "training_log_transolver.csv"),
     
     # --- 训练超参数 ---
-    "BATCH_SIZE": 64,
-    "EPOCHS": 200,
-    "MAX_LR": 5e-4,
+    "BATCH_SIZE": env_int("GANO_AIRFOIL_TRANSOLVER_BATCH_SIZE", 64),
+    "EPOCHS": env_int("GANO_AIRFOIL_TRANSOLVER_EPOCHS", 200),
+    "MAX_LR": env_float("GANO_AIRFOIL_TRANSOLVER_MAX_LR", 5e-4),
     "WEIGHT_DECAY": 0.0,
     "CLIP_GRAD": 2.0,
-    "SAMPLES_PER_ITEM": 4096,
-    "NUM_WORKERS": 4,
+    "SAMPLES_PER_ITEM": env_int("GANO_AIRFOIL_TRANSOLVER_SAMPLES_PER_ITEM", 4096),
+    "NUM_WORKERS": env_int("GANO_AIRFOIL_TRANSOLVER_NUM_WORKERS", 4),
 
     # --- Transolver 模型架构超参数 ---
     "Z_DIM": 64,         # 必须与 DeepSDF Latent Dim 对齐
@@ -66,6 +79,15 @@ CONFIG = {
     
     "VIS_INTERVAL": 5,
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "BATCH_SIZE": env_int("GANO_AIRFOIL_TRANSOLVER_SMOKE_BATCH_SIZE", 1),
+        "EPOCHS": env_int("GANO_AIRFOIL_TRANSOLVER_SMOKE_EPOCHS", 1),
+        "SAMPLES_PER_ITEM": env_int("GANO_AIRFOIL_TRANSOLVER_SMOKE_SAMPLES_PER_ITEM", 128),
+        "NUM_WORKERS": env_int("GANO_AIRFOIL_TRANSOLVER_SMOKE_NUM_WORKERS", 0),
+        "VIS_INTERVAL": 1,
+    })
 
 os.makedirs(CONFIG["SAVE_DIR"], exist_ok=True)
 os.makedirs(CONFIG["VIS_DIR"], exist_ok=True)
@@ -220,8 +242,13 @@ def main():
     stats = phys_data["stats"]
 
     full_dataset = AirfoilPhysicsDataset(z_all, coords_list, targets_list, samples_per_item=CONFIG["SAMPLES_PER_ITEM"])
-    train_size = int(0.9 * len(full_dataset))
+    if len(full_dataset) < 2:
+        raise ValueError("AirfoilPhysicsDataset needs at least 2 samples for train/validation split.")
+    train_size = max(1, int(0.9 * len(full_dataset)))
     test_size = len(full_dataset) - train_size
+    if test_size == 0:
+        train_size -= 1
+        test_size = 1
     train_ds, test_ds = random_split(full_dataset, [train_size, test_size], generator=torch.Generator().manual_seed(CONFIG["SEED"]))
 
     train_loader = DataLoader(train_ds, batch_size=CONFIG["BATCH_SIZE"], shuffle=True, num_workers=CONFIG["NUM_WORKERS"], pin_memory=True)

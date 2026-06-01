@@ -25,6 +25,23 @@ if project_root not in sys.path:
 
 from src.hh.gi_transolver import Model as TransolverModel
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
 # A100 TF32 加速
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -37,22 +54,22 @@ except Exception:
 # 统一参数配置中心
 # ==========================================
 CONFIG = {
-    # --- 路径配置 (相对当前脚本) ---
-    "norm_data": "../../data/hh/scattering_dataset_normalized.npz", 
-    "deepsdf_ckpt": "../../checkpoints/hh/stablesdf/deepsdf_final.pth",
-    "ckpt_dir": "../../checkpoints/hh/transolver",
-    "output_dir": "../../output/hh/transolver_vis",
+    # --- 路径配置 ---
+    "norm_data": env_path("GANO_HH_TRANSOLVER_NORM_DATA", os.path.join(project_root, "data", "hh", "scattering_dataset_normalized.npz")),
+    "deepsdf_ckpt": env_path("GANO_HH_TRANSOLVER_DEEPSDF_CKPT", os.path.join(project_root, "checkpoints", "hh", "stablesdf", "deepsdf_final.pth")),
+    "ckpt_dir": env_path("GANO_HH_TRANSOLVER_CKPT_DIR", os.path.join(project_root, "checkpoints", "hh", "transolver")),
+    "output_dir": env_path("GANO_HH_TRANSOLVER_OUTPUT_DIR", os.path.join(project_root, "output", "hh", "transolver_vis")),
     
     # --- 训练超参数 ---
-    "batch_size": 32,
-    "epochs": 200,
-    "max_lr": 5e-4,
+    "batch_size": env_int("GANO_HH_TRANSOLVER_BATCH_SIZE", 32),
+    "epochs": env_int("GANO_HH_TRANSOLVER_EPOCHS", 200),
+    "max_lr": env_float("GANO_HH_TRANSOLVER_MAX_LR", 5e-4),
     "pct_start": 0.01,
     "div_factor": 2,
     "final_div_factor": 10,
     "weight_decay": 1e-5,
     "clip_grad": 1.0,
-    "samples_per_item": 4096,
+    "samples_per_item": env_int("GANO_HH_TRANSOLVER_SAMPLES_PER_ITEM", 4096),
     
     # --- GI-Transolver 模型配置 ---
     "z_dim": 64,
@@ -73,11 +90,20 @@ CONFIG = {
     "z_inject_layers": -1,
     
     # --- 运行控制 ---
-    "vis_interval": 5,
-    "num_workers": 4,
+    "vis_interval": env_int("GANO_HH_TRANSOLVER_VIS_INTERVAL", 5),
+    "num_workers": env_int("GANO_HH_TRANSOLVER_NUM_WORKERS", 4),
     "seed": 42,
     "device": "cuda" if torch.cuda.is_available() else "cpu"
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "batch_size": env_int("GANO_HH_TRANSOLVER_SMOKE_BATCH_SIZE", 1),
+        "epochs": env_int("GANO_HH_TRANSOLVER_SMOKE_EPOCHS", 1),
+        "samples_per_item": env_int("GANO_HH_TRANSOLVER_SMOKE_SAMPLES_PER_ITEM", 128),
+        "vis_interval": 1,
+        "num_workers": env_int("GANO_HH_TRANSOLVER_SMOKE_NUM_WORKERS", 0),
+    })
 
 # ==========================================
 # 辅助类与函数 (Logger, Saver, Dataset) 保持原样逻辑
@@ -190,11 +216,10 @@ def visualize_results(model, dataset, device, epoch, save_dir):
 # ==========================================
 def main():
     # 路径解析
-    cur_dir = os.path.dirname(os.path.abspath(__file__))
-    norm_data = os.path.normpath(os.path.join(cur_dir, CONFIG["norm_data"]))
-    deepsdf_ckpt = os.path.normpath(os.path.join(cur_dir, CONFIG["deepsdf_ckpt"]))
-    ckpt_dir = os.path.normpath(os.path.join(cur_dir, CONFIG["ckpt_dir"]))
-    output_dir = os.path.normpath(os.path.join(cur_dir, CONFIG["output_dir"]))
+    norm_data = os.path.normpath(CONFIG["norm_data"])
+    deepsdf_ckpt = os.path.normpath(CONFIG["deepsdf_ckpt"])
+    ckpt_dir = os.path.normpath(CONFIG["ckpt_dir"])
+    output_dir = os.path.normpath(CONFIG["output_dir"])
     
     os.makedirs(ckpt_dir, exist_ok=True); os.makedirs(output_dir, exist_ok=True)
     
@@ -206,8 +231,14 @@ def main():
     device = torch.device(CONFIG["device"])
     full_dataset = FastPhysicsDataset(norm_data, deepsdf_ckpt, num_points=CONFIG["samples_per_item"])
 
-    train_size = int(0.9 * len(full_dataset))
-    train_ds, test_ds = random_split(full_dataset, [train_size, len(full_dataset) - train_size])
+    if len(full_dataset) < 2:
+        raise ValueError("FastPhysicsDataset needs at least 2 samples for train/validation split.")
+    train_size = max(1, int(0.9 * len(full_dataset)))
+    test_size = len(full_dataset) - train_size
+    if test_size == 0:
+        train_size -= 1
+        test_size = 1
+    train_ds, test_ds = random_split(full_dataset, [train_size, test_size])
 
     train_loader = DataLoader(train_ds, batch_size=CONFIG["batch_size"], shuffle=True, num_workers=CONFIG["num_workers"], pin_memory=True)
     test_loader = DataLoader(test_ds, batch_size=CONFIG["batch_size"], shuffle=False, num_workers=CONFIG["num_workers"], pin_memory=True)

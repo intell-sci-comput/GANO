@@ -23,25 +23,47 @@ if project_root not in sys.path:
 
 from src.car.model import DeepSDFWorkspace
 
+SMOKE_TEST = os.environ.get("GANO_SMOKE_TEST", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def env_path_list(name, default):
+    value = os.environ.get(name)
+    if not value:
+        return default
+    return [item for item in value.split(os.pathsep) if item]
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    return int(value) if value not in (None, "") else default
+
+
+def env_bool(name, default):
+    value = os.environ.get(name)
+    if value in (None, ""):
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
 CONFIG = {
     # --- 路径配置 ---
-    "DATA_DIRS": [
-        '/home/sunguoze/Getsdf/sdf_output_hybrid',
-        '/home/sunguoze/Getsdf/sdf_output_hybrid2',
-        '/mnt/sunguoze/processed_data/car_sdf_hybrid',
-    ],
+    # 服务器真实路径可通过 GANO_CAR_SDF_DATA_DIRS 覆盖，多个路径用 os.pathsep 分隔。
+    "DATA_DIRS": env_path_list(
+        "GANO_CAR_SDF_DATA_DIRS",
+        [os.path.join(project_root, "data", "car", "sdf")],
+    ),
     # 将保存路径指向我们在 GANO 里规范的 checkpoints 目录
     "SAVE_DIR": os.path.join(project_root, "checkpoints", "car_training_h800_all"),
 
     # --- 训练超参数 ---
-    "BATCH_SIZE": 500000,
-    "NUM_EPOCHS": 800,
-    "START_EPOCH": 400,
+    "BATCH_SIZE": env_int("GANO_CAR_STABLESDF_BATCH_SIZE", 500000),
+    "NUM_EPOCHS": env_int("GANO_CAR_STABLESDF_EPOCHS", 800),
+    "START_EPOCH": env_int("GANO_CAR_STABLESDF_START_EPOCH", 400),
     "LATENT_SIZE": 256,
-    "RESUME": True,
+    "RESUME": env_bool("GANO_CAR_STABLESDF_RESUME", True),
 
     # --- 噪声控制 ---
     "NOISE_STD": 0.005,      # 实验 1: 0.0 | 实验 2: 0.005 | 实验 3: 0.05
@@ -51,6 +73,16 @@ CONFIG = {
     "LOG_EVERY": 10,         # 每多少轮打印一次日志并保存 latest
     "SAVE_EVERY": 100,       # 每多少轮保留一个历史权重备份
 }
+
+if SMOKE_TEST:
+    CONFIG.update({
+        "BATCH_SIZE": env_int("GANO_CAR_STABLESDF_SMOKE_BATCH_SIZE", 1024),
+        "NUM_EPOCHS": env_int("GANO_CAR_STABLESDF_SMOKE_EPOCHS", 1),
+        "START_EPOCH": 0,
+        "RESUME": False,
+        "LOG_EVERY": 1,
+        "SAVE_EVERY": 1,
+    })
 
 os.makedirs(CONFIG["SAVE_DIR"], exist_ok=True)
 
