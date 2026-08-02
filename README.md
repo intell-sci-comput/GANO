@@ -707,13 +707,13 @@ normalized pressure target to $[-8,5]$.
 | Optimizer | Adam + OneCycle | Adam | L-BFGS |
 | Outer steps | 100 | 100 | 40 |
 | Learning rate | Max $10^{-2}$ | $10^{-3}$ | $5\times10^{-3}$ |
-| Latent regularization | $10^{-4}\operatorname{mean}(z^2)$ | $10^{-4}\sum z^2$ | $10^{-4}\operatorname{mean}((z-z_0)^2)$ |
+| Latent regularization | $\displaystyle \frac{10^{-4}}{d_z}\sum_{j=1}^{d_z}z_j^2$ | $\displaystyle 10^{-4}\sum_{j=1}^{d_z}z_j^2$ | $\displaystyle \frac{10^{-4}}{d_z}\sum_{j=1}^{d_z}(z_j-z_{0,j})^2$ |
 | Field/context points | 100 sensors + 4,096 context points | Up to 100,000 context points | 50,000 surface points |
 | Surface projection | None | None | 5 SDF projection steps |
 | Part-wise constraints | None | None | 16 points, $I-J^\dagger J$ projection |
 | Geometry export resolution | N/A | $512^2$ | $512^3$ |
 
-The airfoil drag penalty is
+Here $d_z$ denotes the geometry-code dimension. The airfoil drag penalty is
 $200\,\max(C_d-0.020,0)^2$. Vehicle L-BFGS uses at most two internal
 iterations per outer step, a history size of 15, and rebuilds the null-space
 projector after each step.
