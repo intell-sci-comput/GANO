@@ -711,7 +711,11 @@ def main():
 
         if val_l2 < best_val_l2:
             best_val_l2 = val_l2
-            torch.save(model.state_dict(), os.path.join(save_dir, "best_model.pth"))
+            best_state = model.state_dict()
+            torch.save(best_state, os.path.join(save_dir, "best_model.pth"))
+            # Keep a stable path for scripts/car/optimize_vehicle.py while also
+            # retaining the timestamped experiment checkpoint above.
+            torch.save(best_state, os.path.join(CONFIG["SAVE_ROOT"], "best_model.pth"))
             logger.info(f"  >>> best saved (val_relL2={best_val_l2:.6f})")
 
         if epoch % 50 == 0:

@@ -44,7 +44,7 @@ def env_int(name, default):
 
 CONFIG = {
     # --- 默认仓库路径；服务器真实路径可通过 GANO_CAR_OPT_* 环境变量覆盖 ---
-    "CAR_ID": "E_S_WW_WM_395",
+    "CAR_ID": os.environ.get("GANO_CAR_OPT_CAR_ID", "E_S_WW_WM_395"),
     "PARTS_ROOT_DIR": env_path("GANO_CAR_OPT_PARTS_ROOT", os.path.join(project_root, "data", "car", "parts")),
     "Z_PATH": env_path(
         "GANO_CAR_OPT_Z_PATH",
@@ -90,7 +90,7 @@ CONFIG = {
     # --- 优化超参数 ---
     "DEVICE": "cuda" if torch.cuda.is_available() else "cpu",
     "SEED": 42,
-    "STEPS": 40,
+    "STEPS": env_int("GANO_CAR_OPT_STEPS", 40),
     "LAMBDA_DRAG": 1.0,
     "LAMBDA_REG": 1e-4,
     "GRAD_CLIP": 1.0,
@@ -118,7 +118,7 @@ CONFIG = {
     "SDF_NORMAL_COMPUTE_DTYPE": "fp32",
 
     # --- 输出 ---
-    "SAVE_ROOT": os.path.join(project_root, "output", "car_optimization"),
+    "SAVE_ROOT": env_path("GANO_CAR_OPT_OUTPUT_DIR", os.path.join(project_root, "output", "car_optimization")),
     "EXP_NAME": "opt_drag_nullspace_transolver_lbfgs",
     "SAVE_INTERVAL": 40,
 

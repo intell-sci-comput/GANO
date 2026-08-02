@@ -42,6 +42,15 @@ def env_int(name, default):
     return int(value) if value not in (None, "") else default
 
 
+def env_float(name, default):
+    value = os.environ.get(name)
+    return float(value) if value not in (None, "") else default
+
+
+def env_path(name, default):
+    return os.environ.get(name, default)
+
+
 # ==========================================
 # ======= [全局参数配置字典] ================
 # ==========================================
@@ -49,9 +58,9 @@ CONFIG = {
     "DEVICE": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 
     # --- 权重与数据路径 ---
-    "TRANSOLVER_CKPT": os.path.join(project_root, "checkpoints", "airfoil_transolver", "airfoil_transolver_best.pth"),
-    "PHYSICS_DATA": os.path.join(project_root, "data", "airfoil", "airfoil_physics_train.pt"),
-    "DEEPSDF_CKPT": os.path.join(project_root, "checkpoints", "airfoil_stablesdf", "model_latest.pth"),
+    "TRANSOLVER_CKPT": env_path("GANO_AIRFOIL_OPT_TRANSOLVER_CKPT", os.path.join(project_root, "checkpoints", "airfoil_transolver", "airfoil_transolver_best.pth")),
+    "PHYSICS_DATA": env_path("GANO_AIRFOIL_OPT_PHYSICS_DATA", os.path.join(project_root, "data", "airfoil", "airfoil_physics_train.pt")),
+    "DEEPSDF_CKPT": env_path("GANO_AIRFOIL_OPT_DEEPSDF_CKPT", os.path.join(project_root, "checkpoints", "airfoil_stablesdf", "model_latest.pth")),
 
     # --- 优化目标超参数 ---
     "ALPHA_DEG": 4.0,           # 攻角 (度)
@@ -61,9 +70,9 @@ CONFIG = {
     "LAMBDA_REG": 1e-4,         # Latent L2 正则化权重
 
     # --- 优化控制 ---
-    "LR": 1e-3,
-    "STEPS": 100,
-    "SAMPLE_IDX": 0,         # 用作优化起点的初始翼型 ID
+    "LR": env_float("GANO_AIRFOIL_OPT_LR", 1e-3),
+    "STEPS": env_int("GANO_AIRFOIL_OPT_STEPS", 100),
+    "SAMPLE_IDX": env_int("GANO_AIRFOIL_OPT_SAMPLE_IDX", 0),  # 用作优化起点的初始翼型 ID
 
     # --- 网格与物理场参数 ---
     "RES": 256,
@@ -94,7 +103,7 @@ CONFIG = {
     "FAR_STRIDE": 6,
 
     # --- 输出路径 ---
-    "OUT_DIR": os.path.join(project_root, "output", "airfoil_optimization"),
+    "OUT_DIR": env_path("GANO_AIRFOIL_OPT_OUTPUT_DIR", os.path.join(project_root, "output", "airfoil_optimization")),
     "SAVE_FIG": True,
     "SAVE_NPZ": True,
 }
