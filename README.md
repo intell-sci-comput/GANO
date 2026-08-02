@@ -101,7 +101,12 @@ $$
 \mathbf{z}_{t+1} = \mathbf{z}_t - \eta\,\mathbf{g}_{\mathrm{safe}}.
 $$
 
-For unconstrained optimization, $\mathbf{g}_{\mathrm{safe}}=\nabla_{\mathbf{z}}\mathcal{J}$.<br>
+For unconstrained optimization, the safe gradient is
+
+$$
+\mathbf{g}_{\mathrm{safe}} = \nabla_{\mathbf{z}}\mathcal{J}.
+$$
+
 For part-wise control, the gradient can be projected onto the null space of the constraint Jacobian.
 
 For vehicle optimization, surface query points are moved back to the updated
