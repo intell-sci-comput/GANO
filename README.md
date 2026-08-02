@@ -98,9 +98,7 @@ GI-Transolver extends Transolver by injecting the geometry code into the slice-t
 Given a trained StableSDF decoder and GI-Transolver surrogate, GANO freezes their model parameters and iteratively updates the geometry latent code:
 
 $$
-\mathbf{z}_{t+1}
-=
-\mathbf{z}_t-\eta\,\mathbf{g}_{\mathrm{safe}}.
+\mathbf{z}_{t+1} = \mathbf{z}_t - \eta\,\mathbf{g}_{\mathrm{safe}}.
 $$
 
 For unconstrained optimization, $\mathbf{g}_{\mathrm{safe}}=\nabla_{\mathbf{z}}\mathcal{J}$.<br>
