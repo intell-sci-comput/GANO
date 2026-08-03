@@ -759,17 +759,6 @@ url={https://openreview.net/forum?id=PTaUjEBHat}
 }
 ```
 
-arXiv version:
-
-```bibtex
-@article{sun2026geometry,
-  title   = {Geometry-Aware Neural Optimizer for Shape Optimization and Inversion},
-  author  = {Sun, Guoze and Miao, Tianya and Huang, Haoyang and
-             Chen, Huaguan and Wan, Han and Zhang, Rui and Sun, Hao},
-  journal = {arXiv preprint arXiv:2605.04474},
-  year    = {2026}
-}
-```
 
 ## Acknowledgements
 
