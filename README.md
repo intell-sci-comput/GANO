@@ -748,6 +748,18 @@ projector after each step.
 ## Citation
 
 If you find this work useful, please cite:
+```bibtex
+@inproceedings{
+guoze2026geometryaware,
+title={Geometry-Aware Neural Optimizer for Shape Optimization and Inversion},
+author={Sun Guoze and Tianya Miao and Haoyang Huang and Huaguan Chen and Han Wan and Rui Zhang and Hao Sun},
+booktitle={Forty-third International Conference on Machine Learning},
+year={2026},
+url={https://openreview.net/forum?id=PTaUjEBHat}
+}
+```
+
+arXiv version:
 
 ```bibtex
 @article{sun2026geometry,
