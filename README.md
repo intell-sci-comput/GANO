@@ -116,27 +116,6 @@ scripts do not apply this surface-point projection.
 
 ## Main Results
 
-### Forward Prediction
-
-| Benchmark | Metric | GANO |
-|---|---:|---:|
-| 2D Helmholtz | Relative L1 | **0.0171** |
-| 2D Helmholtz | Relative L2 | **0.0170** |
-| 2D Airfoil | Relative L1 | **0.0008** |
-| 2D Airfoil | Relative L2 | **0.0022** |
-| 3D Vehicle | Relative L1 | **0.1655** |
-| 3D Vehicle | Relative L2 | **0.1782** |
-
-### Shape Optimization
-
-| Task | Initial result | Optimized result | Improvement |
-|---|---:|---:|---:|
-| Airfoil lift-to-drag ratio $C_L/C_D$ | 53.6 | **83.4** | **+55.9%** |
-| Fastback drag coefficient $C_D$ | 0.299 | **0.278** | **-7.02%** |
-| Estateback drag coefficient $C_D$ | 0.346 | **0.323** | **-6.64%** |
-
-The optimized airfoils are validated with COMSOL, while the optimized vehicles are validated with high-fidelity OpenFOAM simulations.
-
 ### 2D Helmholtz Shape Inversion
 
 <p align="center">
@@ -722,28 +701,6 @@ Here $d_z$ denotes the geometry-code dimension. The airfoil drag penalty is
 $200\,\max(C_d-0.020,0)^2$. Vehicle L-BFGS uses at most two internal
 iterations per outer step, a history size of 15, and rebuilds the null-space
 projector after each step.
-
-## Known Limitations
-
-- Pretrained checkpoints are not distributed. Each benchmark must be trained
-  from scratch before running inversion or shape optimization.
-- The current implementation is specialized for the three released benchmarks.
-  Extending GANO to a new physical system requires new preprocessing, field
-  normalization, surrogate training, and a differentiable objective.
-- Vehicle StableSDF training loads the complete processed SDF dataset into GPU
-  memory and therefore requires a high-memory CUDA GPU.
-- Optimization is restricted to the learned StableSDF latent space. This
-  encourages shapes close to the training distribution but does not guarantee
-  geometric validity, manufacturability, or satisfaction of constraints that
-  are not explicitly included in the objective.
-- Predicted improvements are based on the learned surrogate. Final optimized
-  geometries should be validated using the corresponding high-fidelity
-  numerical solver.
-- Some preprocessing and point-sampling operations are stochastic, so results
-  may vary slightly between runs even when the main training seed is fixed.
-- Part-wise vehicle constraints require separately prepared component meshes
-  and rely on the case-sensitive naming conventions documented in
-  [`data/README.md`](data/README.md#optional-component-meshes-for-part-wise-optimization).
 
 ## Citation
 
